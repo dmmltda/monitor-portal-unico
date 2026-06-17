@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { Resend } from 'resend'
 import { env } from '../env.js'
 import { prisma } from '../lib/db.js'
@@ -78,7 +79,7 @@ export async function sendDailyReport(opts: { force?: boolean; bypassLock?: bool
     }
 
     const report = await buildDailyReport()
-    const { subject, html, text } = renderDailyEmail(report)
+    const baseUrl = env.PUBLIC_BASE_URL
 
     let sent = 0
     let failed = 0
@@ -93,6 +94,15 @@ export async function sendDailyReport(opts: { force?: boolean; bypassLock?: bool
         }
       }
 
+      // Garante o token de cancelamento (unico por contato).
+      let token = contact.unsubscribeToken
+      if (!token) {
+        token = randomBytes(18).toString('base64url')
+        await prisma.contact.update({ where: { id: contact.id }, data: { unsubscribeToken: token } })
+      }
+      const unsubUrl = baseUrl ? `${baseUrl}/api/unsubscribe?token=${token}` : undefined
+      const { subject, html, text } = renderDailyEmail(report, unsubUrl)
+
       try {
         const { data, error } = await resend.emails.send({
           from: env.EMAIL_FROM,
@@ -100,6 +110,9 @@ export async function sendDailyReport(opts: { force?: boolean; bypassLock?: bool
           subject,
           html,
           text,
+          headers: unsubUrl
+            ? { 'List-Unsubscribe': `<${unsubUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
+            : undefined,
         })
         if (error) {
           if (!opts.bypassLock) await releaseSend(reportDate, contact.email)

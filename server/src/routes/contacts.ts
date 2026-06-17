@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../lib/db.js'
@@ -61,7 +62,9 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     if (existing) {
       return reply.code(409).send({ error: 'Contato ja cadastrado.' })
     }
-    const contact = await prisma.contact.create({ data: { email, name } })
+    const contact = await prisma.contact.create({
+      data: { email, name, unsubscribeToken: randomBytes(18).toString('base64url') },
+    })
     return reply.code(201).send({ contact })
   })
 

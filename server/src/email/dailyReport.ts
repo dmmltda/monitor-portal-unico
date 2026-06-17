@@ -124,8 +124,11 @@ function fmtMs(v: number | null): string {
   return v == null ? '—' : `${v} ms`
 }
 
-/** Gera o assunto e o HTML do relatorio. */
-export function renderDailyEmail(report: DailyReport): { subject: string; html: string; text: string } {
+/** Gera o assunto e o HTML do relatorio. `unsubscribeUrl` adiciona o link de cancelamento. */
+export function renderDailyEmail(
+  report: DailyReport,
+  unsubscribeUrl?: string,
+): { subject: string; html: string; text: string } {
   const overall = report.overallUptimePct
   const statusColor = overall == null ? '#64748b' : overall >= 99.5 ? '#16a34a' : overall >= 95 ? '#d97706' : '#dc2626'
   const statusWord = overall == null ? 'Sem dados' : overall >= 99.5 ? 'Estavel' : overall >= 95 ? 'Instavel' : 'Critico'
@@ -184,7 +187,11 @@ export function renderDailyEmail(report: DailyReport): { subject: string; html: 
       ${incidentsBlock}
       ${link}
     </div>
-    <p style="color:#475569;font-size:12px;text-align:center;margin:18px 0 0;">Voce recebe este e-mail por estar na lista de contatos do Monitor Portal Unico.</p>
+    <p style="color:#475569;font-size:12px;text-align:center;margin:18px 0 0;">Voce recebe este e-mail por estar na lista de contatos do Monitor Portal Unico.${
+      unsubscribeUrl
+        ? `<br/>Nao quer mais receber? <a href="${unsubscribeUrl}" style="color:#64748b;text-decoration:underline;">Cancelar inscricao</a>.`
+        : ''
+    }</p>
   </div>
 </body></html>`
 
@@ -201,6 +208,8 @@ export function renderDailyEmail(report: DailyReport): { subject: string; html: 
       : `Incidentes:\n${report.incidents
           .map((i) => `  * ${i.targetLabel}: ${formatTimeBR(i.startedAt, env.TZ)} -> ${i.endedAt ? formatTimeBR(i.endedAt, env.TZ) : 'em aberto'} (${formatDuration(i.durationMs)})`)
           .join('\n')}`,
+    '',
+    unsubscribeUrl ? `Cancelar inscricao: ${unsubscribeUrl}` : '',
   ].join('\n')
 
   const subject = `[Portal Unico] ${report.dateBR} — ${statusWord}, ${fmtPct(overall)} uptime`

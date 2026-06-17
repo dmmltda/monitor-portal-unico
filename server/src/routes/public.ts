@@ -2,6 +2,27 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { getCurrentStatus, getHistory, getIncidents, getSummary, getUptimeTimeline } from '../stats/aggregate.js'
 import { targetByKey } from '../probe/targets.js'
+import { prisma } from '../lib/db.js'
+
+async function unsubscribeByToken(token?: string): Promise<{ ok: boolean; message: string }> {
+  if (!token) return { ok: false, message: 'Link invalido.' }
+  const contact = await prisma.contact.findUnique({ where: { unsubscribeToken: token } })
+  if (!contact) return { ok: false, message: 'Link invalido ou inscricao ja cancelada.' }
+  if (contact.active) await prisma.contact.update({ where: { id: contact.id }, data: { active: false } })
+  return { ok: true, message: `Pronto! ${contact.email} foi removido da lista e nao recebera mais o relatorio diario.` }
+}
+
+function unsubPage(message: string, ok: boolean): string {
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Cancelar inscrição</title></head>
+  <body style="margin:0;background:#0b1120;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;">
+    <div style="max-width:480px;margin:0 auto;padding:64px 24px;text-align:center;">
+      <div style="font-size:40px;">${ok ? '✅' : '⚠️'}</div>
+      <h1 style="font-size:20px;color:#f1f5f9;margin:16px 0 8px;">${ok ? 'Inscrição cancelada' : 'Não foi possível cancelar'}</h1>
+      <p style="color:#94a3b8;font-size:14px;">${message}</p>
+      <p style="margin-top:24px;"><a href="/" style="color:#818cf8;font-size:14px;">Ir para o monitor →</a></p>
+    </div>
+  </body></html>`
+}
 
 const historyQuery = z.object({
   hours: z.coerce.number().int().positive().max(24 * 90).default(24),
@@ -22,6 +43,19 @@ function defaultBucket(hours: number): number {
 
 export async function publicRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/health', async () => ({ ok: true }))
+
+  // Cancelamento de inscricao (link do e-mail). Token unico por contato.
+  app.get('/api/unsubscribe', async (req, reply) => {
+    const { token } = req.query as { token?: string }
+    const result = await unsubscribeByToken(token)
+    return reply.type('text/html').send(unsubPage(result.message, result.ok))
+  })
+  // One-click (RFC 8058): cliente de e-mail faz POST direto.
+  app.post('/api/unsubscribe', async (req, reply) => {
+    const { token } = req.query as { token?: string }
+    await unsubscribeByToken(token)
+    return reply.code(200).send({ ok: true })
+  })
 
   app.get('/api/status', async () => {
     const [current, last24h, last7d] = await Promise.all([

@@ -76,9 +76,11 @@ model Setting {
 
 /// Contato que recebe o relatorio diario.
 model Contact {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  email            String   @unique
+  name             String?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  // Token unico para o link de cancelamento (so desinscreve este contato).
+  unsubscribeToken String?  @unique
 }

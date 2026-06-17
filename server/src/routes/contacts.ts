@@ -5,6 +5,7 @@ import { env } from '../env.js'
 import { tzDayWindow } from '../lib/time.js'
 import { sendDailyReport } from '../email/sendReport.js'
 import { runProbeCycle } from '../probe/runProbe.js'
+import { debugAuth } from '../probe/authProbe.js'
 import { buildDailyReport, renderDailyEmail } from '../email/dailyReport.js'
 import { requireAdmin } from './auth.js'
 
@@ -65,6 +66,13 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   app.post('/api/admin/probe-now', async () => {
     const outcomes = await runProbeCycle()
     return { ok: true, outcomes }
+  })
+
+  // Diagnostico do certificado/autenticacao (mostra status + corpo da resposta).
+  // ?roleType=XXX testa um perfil diferente sem mudar a env.
+  app.get('/api/admin/auth-debug', async (req) => {
+    const q = req.query as { roleType?: string }
+    return debugAuth(q.roleType)
   })
 
   app.post('/api/admin/send-report', async (req) => {

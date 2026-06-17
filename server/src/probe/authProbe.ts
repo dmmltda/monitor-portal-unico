@@ -24,6 +24,91 @@ function loadPfx(): Buffer | null {
   return pfxCache
 }
 
+export interface AuthDebug {
+  ok: boolean
+  statusCode: number | null
+  hasToken: boolean
+  roleType: string
+  authEnv: string
+  bodySnippet: string
+  error: string | null
+}
+
+/**
+ * Versao de diagnostico (admin): faz a autenticacao e devolve status + corpo da
+ * resposta, para acertar o Role-Type. NAO e persistida nem exibida ao publico.
+ */
+export function debugAuth(roleTypeOverride?: string): Promise<AuthDebug> {
+  const pfx = loadPfx()
+  const roleType = roleTypeOverride || env.PU_ROLE_TYPE
+  const authEnv = env.PU_AUTH_ENV
+  if (!pfx) {
+    return Promise.resolve({
+      ok: false,
+      statusCode: null,
+      hasToken: false,
+      roleType,
+      authEnv,
+      bodySnippet: '',
+      error: 'Certificado nao carregado',
+    })
+  }
+  const host = env.PU_AUTH_ENV === 'val' ? 'val.portalunico.siscomex.gov.br' : 'portalunico.siscomex.gov.br'
+  return new Promise<AuthDebug>((resolve) => {
+    try {
+      const req = https.request(
+        {
+          host,
+          port: 443,
+          path: '/portal/api/autenticar',
+          method: 'POST',
+          pfx,
+          passphrase: env.PU_CERT_PASSPHRASE || undefined,
+          headers: { 'Role-Type': roleType, Accept: 'application/json' },
+          timeout: env.PROBE_TIMEOUT_MS,
+        },
+        (res) => {
+          let body = ''
+          res.on('data', (c) => {
+            if (body.length < 600) body += c.toString()
+          })
+          res.on('end', () => {
+            const status = res.statusCode ?? null
+            const hasToken = Boolean(res.headers['set-token'] || res.headers['x-csrf-token'])
+            resolve({
+              ok: hasToken,
+              statusCode: status,
+              hasToken,
+              roleType,
+              authEnv,
+              bodySnippet: body.slice(0, 600),
+              error: null,
+            })
+          })
+        },
+      )
+      req.on('timeout', () => {
+        req.destroy()
+        resolve({ ok: false, statusCode: null, hasToken: false, roleType, authEnv, bodySnippet: '', error: 'Timeout' })
+      })
+      req.on('error', (e) => {
+        resolve({ ok: false, statusCode: null, hasToken: false, roleType, authEnv, bodySnippet: '', error: e.message })
+      })
+      req.end()
+    } catch (err) {
+      resolve({
+        ok: false,
+        statusCode: null,
+        hasToken: false,
+        roleType,
+        authEnv,
+        bodySnippet: '',
+        error: `Falha no certificado: ${(err as Error).message}`,
+      })
+    }
+  })
+}
+
 /**
  * Deep check: autentica no Portal Unico via mTLS e considera "no ar" se a API
  * responder com o token (Set-Token / X-CSRF-Token). Sem token, registra o

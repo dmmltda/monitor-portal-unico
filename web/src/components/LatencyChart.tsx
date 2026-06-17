@@ -57,8 +57,10 @@ export function LatencyChart({ targetKey, targetLabel }: Props) {
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-slate-100">Latência · {targetLabel}</h3>
-          <p className="text-xs text-slate-500">Latência média por intervalo (ms)</p>
+          <h3 className="font-semibold text-slate-100">Tempo de resposta · {targetLabel}</h3>
+          <p className="text-xs text-slate-500">
+            Quanto o serviço demora para responder, em milissegundos (ms). Quanto menor, mais rápido.
+          </p>
         </div>
         <div className="flex gap-1 rounded-lg bg-slate-800/70 p-1">
           {RANGES.map((r) => (
@@ -105,7 +107,7 @@ export function LatencyChart({ targetKey, targetLabel }: Props) {
                 contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 12 }}
                 labelStyle={{ color: '#94a3b8' }}
                 labelFormatter={(v) => fmtDateTime(String(v))}
-                formatter={(value: number | null) => [fmtMs(value), 'Latência']}
+                formatter={(value: number | null) => [fmtMs(value), 'Tempo de resposta']}
               />
               <Area
                 type="monotone"

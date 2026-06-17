@@ -66,7 +66,7 @@ export default function App() {
           </p>
           <h1 className="mt-1 text-2xl font-bold text-slate-50 sm:text-3xl">Monitor · Portal Único Siscomex</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Disponibilidade e latência dos serviços do Portal Único de Comércio Exterior.
+            Disponibilidade e tempo de resposta dos serviços do Portal Único de Comércio Exterior.
           </p>
         </div>
         <Brand />

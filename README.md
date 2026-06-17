@@ -22,7 +22,7 @@ Site público com dashboard moderno que monitora a **disponibilidade e a latênc
 | Componente | O quê |
 |-----------|-------|
 | Probe (cron `*/2 * * * *`) | A cada 2 min faz `GET` nos alvos, grava `ProbeResult`, abre/fecha `Incident`. |
-| Relatório (cron `0 18 * * *`) | Monta o resumo do dia (uptime %, latência média/p95, incidentes) e envia via Resend. |
+| Relatório (cron `0 18 * * *`) | Monta o resumo do dia (uptime %, latência média/p95, incidentes) e envia via Resend. **Trava: no máx. 1 e-mail/dia por destinatário** (garantida por unique `[reportDate, email]` no banco — à prova de cron duplicado/restart). |
 | API | `/api/status`, `/api/history/:alvo`, `/api/incidents`, e rotas admin (`x-admin-token`). |
 | Dashboard | Status ao vivo, gráfico de latência (6h/24h/7d/30d) e histórico de incidentes. |
 

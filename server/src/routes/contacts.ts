@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../lib/db.js'
+import { env } from '../env.js'
+import { tzDayWindow } from '../lib/time.js'
 import { sendDailyReport } from '../email/sendReport.js'
 import { runProbeCycle } from '../probe/runProbe.js'
 import { buildDailyReport, renderDailyEmail } from '../email/dailyReport.js'
@@ -65,9 +67,22 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true, outcomes }
   })
 
-  app.post('/api/admin/send-report', async () => {
-    const result = await sendDailyReport({ force: true })
+  app.post('/api/admin/send-report', async (req) => {
+    // ?bypassLock=true reenvia mesmo para quem ja recebeu hoje (apenas teste).
+    const q = req.query as { bypassLock?: string }
+    const bypassLock = q.bypassLock === 'true' || q.bypassLock === '1'
+    const result = await sendDailyReport({ force: true, bypassLock })
     return result
+  })
+
+  // Quem ja recebeu o relatorio hoje (trava do dia).
+  app.get('/api/admin/report-status', async () => {
+    const reportDate = tzDayWindow(env.TZ).dateLabel
+    const sends = await prisma.dailyReportSend.findMany({
+      where: { reportDate },
+      orderBy: { sentAt: 'desc' },
+    })
+    return { reportDate, total: sends.length, sends }
   })
 
   // Pre-visualizacao do HTML do relatorio do dia (sem enviar).

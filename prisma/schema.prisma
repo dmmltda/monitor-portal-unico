@@ -39,6 +39,19 @@ model Incident {
   @@index([endedAt])
 }
 
+/// Trava de envio: garante 1 relatorio por dia por destinatario.
+/// A unique [reportDate, email] e a barreira fisica contra envios duplicados —
+/// uma 2a tentativa no mesmo dia falha no banco (P2002) e e ignorada.
+model DailyReportSend {
+  id         String   @id @default(cuid())
+  reportDate String // YYYY-MM-DD no fuso configurado (env.TZ)
+  email      String
+  sentAt     DateTime @default(now())
+
+  @@unique([reportDate, email])
+  @@index([reportDate])
+}
+
 /// Contato que recebe o relatorio diario.
 model Contact {
   id        String   @id @default(cuid())

@@ -18,11 +18,23 @@ async function main() {
   // Em producao, serve o build do dashboard (Vite -> web/dist).
   const webDist = resolve(process.cwd(), 'web', 'dist')
   if (existsSync(webDist)) {
-    await app.register(fastifyStatic, { root: webDist, prefix: '/' })
+    await app.register(fastifyStatic, {
+      root: webDist,
+      prefix: '/',
+      setHeaders: (res, path) => {
+        // index.html sempre revalida (novo deploy carrega na hora);
+        // assets com hash podem ser cacheados por muito tempo (seguros).
+        if (path.endsWith('index.html')) {
+          res.setHeader('cache-control', 'no-cache')
+        } else if (path.includes('assets')) {
+          res.setHeader('cache-control', 'public, max-age=31536000, immutable')
+        }
+      },
+    })
     // SPA fallback: qualquer GET fora de /api devolve o index.html.
     app.setNotFoundHandler((req, reply) => {
       if (req.method === 'GET' && !req.url.startsWith('/api')) {
-        return reply.sendFile('index.html')
+        return reply.header('cache-control', 'no-cache').sendFile('index.html')
       }
       return reply.code(404).send({ error: 'Not found' })
     })

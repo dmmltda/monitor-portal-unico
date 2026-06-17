@@ -46,60 +46,67 @@ export function checkAuth(): Promise<ProbeOutcome> {
   const started = Date.now()
 
   return new Promise<ProbeOutcome>((resolve) => {
-    const req = https.request(
-      {
-        host,
-        port: 443,
-        path: '/portal/api/autenticar',
-        method: 'POST',
-        pfx,
-        passphrase: env.PU_CERT_PASSPHRASE || undefined,
-        headers: {
-          'Role-Type': env.PU_ROLE_TYPE,
-          Accept: 'application/json',
-          'User-Agent': 'monitor-portal-unico/1.0 (+disponibilidade)',
+    // O proprio https.request pode lancar de forma sincrona ao carregar o
+    // certificado (ex: PKCS#12 legado nao suportado pelo OpenSSL 3). O try/catch
+    // garante que isso vire um "fora" normal, sem derrubar o ciclo de probe.
+    try {
+      const req = https.request(
+        {
+          host,
+          port: 443,
+          path: '/portal/api/autenticar',
+          method: 'POST',
+          pfx,
+          passphrase: env.PU_CERT_PASSPHRASE || undefined,
+          headers: {
+            'Role-Type': env.PU_ROLE_TYPE,
+            Accept: 'application/json',
+            'User-Agent': 'monitor-portal-unico/1.0 (+disponibilidade)',
+          },
+          timeout: env.PROBE_TIMEOUT_MS,
         },
-        timeout: env.PROBE_TIMEOUT_MS,
-      },
-      (res) => {
-        res.on('data', () => {})
-        res.on('end', () => {
-          const latencyMs = Date.now() - started
-          const status = res.statusCode ?? null
-          const gotToken = Boolean(res.headers['set-token'] || res.headers['x-csrf-token'])
-          if (gotToken) {
-            resolve({ targetKey: key, ok: true, statusCode: status, latencyMs, error: null })
-          } else {
-            resolve({
-              targetKey: key,
-              ok: false,
-              statusCode: status,
-              latencyMs,
-              error: `Sem token na resposta (HTTP ${status ?? '??'})`,
-            })
-          }
+        (res) => {
+          res.on('data', () => {})
+          res.on('end', () => {
+            const latencyMs = Date.now() - started
+            const status = res.statusCode ?? null
+            const gotToken = Boolean(res.headers['set-token'] || res.headers['x-csrf-token'])
+            if (gotToken) {
+              resolve({ targetKey: key, ok: true, statusCode: status, latencyMs, error: null })
+            } else {
+              resolve({
+                targetKey: key,
+                ok: false,
+                statusCode: status,
+                latencyMs,
+                error: `Sem token na resposta (HTTP ${status ?? '??'})`,
+              })
+            }
+          })
+        },
+      )
+      req.on('timeout', () => {
+        req.destroy()
+        resolve({
+          targetKey: key,
+          ok: false,
+          statusCode: null,
+          latencyMs: Date.now() - started,
+          error: `Timeout (${env.PROBE_TIMEOUT_MS}ms)`,
         })
-      },
-    )
-    req.on('timeout', () => {
-      req.destroy()
+      })
+      req.on('error', (err) => {
+        resolve({ targetKey: key, ok: false, statusCode: null, latencyMs: Date.now() - started, error: err.message })
+      })
+      req.end()
+    } catch (err) {
       resolve({
         targetKey: key,
         ok: false,
         statusCode: null,
         latencyMs: Date.now() - started,
-        error: `Timeout (${env.PROBE_TIMEOUT_MS}ms)`,
+        error: `Falha no certificado: ${(err as Error).message}`,
       })
-    })
-    req.on('error', (err) => {
-      resolve({
-        targetKey: key,
-        ok: false,
-        statusCode: null,
-        latencyMs: Date.now() - started,
-        error: err.message,
-      })
-    })
-    req.end()
+    }
   })
 }

@@ -110,13 +110,13 @@ export function LatencyChart({ targetKey, targetLabel }: Props) {
                 </linearGradient>
               </defs>
 
-              {/* Faixas bom / médio / lento */}
+              {/* Faixas bom (topo) / médio (meio) / lento (base) — eixo invertido */}
               <ReferenceArea y1={0} y2={GOOD} fill="#22c55e" fillOpacity={0.06} strokeOpacity={0}
-                label={{ value: 'Bom', position: 'insideBottomRight', fill: '#22c55e', fontSize: 10 }} />
+                label={{ value: 'Bom', position: 'insideTopRight', fill: '#22c55e', fontSize: 10 }} />
               <ReferenceArea y1={GOOD} y2={BAD} fill="#f59e0b" fillOpacity={0.06} strokeOpacity={0}
-                label={{ value: 'Médio', position: 'insideTopRight', fill: '#f59e0b', fontSize: 10 }} />
+                label={{ value: 'Médio', position: 'center', fill: '#f59e0b', fontSize: 10 }} />
               <ReferenceArea y1={BAD} y2={yMax} fill="#ef4444" fillOpacity={0.07} strokeOpacity={0}
-                label={{ value: 'Lento', position: 'insideTopRight', fill: '#ef4444', fontSize: 10 }} />
+                label={{ value: 'Lento', position: 'insideBottomRight', fill: '#ef4444', fontSize: 10 }} />
 
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis
@@ -126,7 +126,7 @@ export function LatencyChart({ targetKey, targetLabel }: Props) {
                 stroke="#334155"
                 minTickGap={40}
               />
-              <YAxis domain={[0, yMax]} tick={{ fill: '#64748b', fontSize: 11 }} stroke="#334155" width={48} />
+              <YAxis reversed domain={[0, yMax]} tick={{ fill: '#64748b', fontSize: 11 }} stroke="#334155" width={48} />
 
               {/* Linhas pontilhadas dos limites de cada faixa */}
               <ReferenceLine y={GOOD} stroke="#22c55e" strokeDasharray="4 4" strokeOpacity={0.6}
@@ -146,6 +146,7 @@ export function LatencyChart({ targetKey, targetLabel }: Props) {
                 stroke="#818cf8"
                 strokeWidth={2}
                 fill="url(#lat)"
+                baseValue={yMax}
                 connectNulls
                 isAnimationActive={false}
               />

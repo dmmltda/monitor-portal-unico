@@ -11,6 +11,7 @@ import { UptimeBars } from './components/UptimeBars'
 import { LatencyChart } from './components/LatencyChart'
 import { IncidentList } from './components/IncidentList'
 import { Brand } from './components/Brand'
+import { ServiceSelector } from './components/ServiceSelector'
 
 const REFRESH_MS = 30_000
 
@@ -98,6 +99,10 @@ export default function App() {
       {/* Tempo de resposta do serviço selecionado (gráfico principal) */}
       {selected && (
         <section className="mt-8">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Tempo de resposta por serviço
+          </h2>
+          <ServiceSelector services={status?.current ?? []} selected={selected} onSelect={setSelected} />
           <LatencyChart targetKey={selected} targetLabel={selectedLabel} />
         </section>
       )}

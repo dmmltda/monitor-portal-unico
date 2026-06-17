@@ -5,7 +5,7 @@
   "description": "Monitor de disponibilidade do Portal Unico Siscomex: dashboard publico + relatorio diario por e-mail.",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "concurrently -n server,web -c blue,magenta \"npm:dev:server\" \"npm:dev:web\"",
@@ -14,7 +14,7 @@
     "build": "npm run build:web && npm run build:server",
     "build:web": "vite build",
     "build:server": "tsc -p server/tsconfig.json",
-    "start": "prisma migrate deploy && node dist/index.js",
+    "start": "prisma migrate deploy && node --openssl-legacy-provider dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
     "migrate:dev": "prisma migrate dev",

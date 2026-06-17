@@ -34,10 +34,10 @@ export function AdminPanel() {
 
   const adminFetch = useCallback(
     async (path: string, init: RequestInit = {}, authToken = token) => {
-      const res = await fetch(path, {
-        ...init,
-        headers: { ...(init.headers ?? {}), 'x-admin-token': authToken, 'content-type': 'application/json' },
-      })
+      const headers: Record<string, string> = { ...(init.headers as Record<string, string>), 'x-admin-token': authToken }
+      // Só envia content-type JSON quando há corpo (POST sem corpo + JSON => 400 no Fastify).
+      if (init.body) headers['content-type'] = 'application/json'
+      const res = await fetch(path, { ...init, headers })
       if (res.status === 401) {
         sessionStorage.removeItem(TOKEN_KEY)
         setAuthed(false)

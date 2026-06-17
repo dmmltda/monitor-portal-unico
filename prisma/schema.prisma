@@ -1,0 +1,49 @@
+// Monitor Portal Unico — schema (SQLite via Prisma)
+// Dados pequenos e append-only; SQLite + volume persistente no Railway.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Resultado de cada verificacao (probe) de um alvo.
+model ProbeResult {
+  id         String   @id @default(cuid())
+  targetKey  String
+  checkedAt  DateTime @default(now())
+  ok         Boolean
+  statusCode Int?
+  latencyMs  Int?
+  error      String?
+
+  @@index([targetKey, checkedAt])
+  @@index([checkedAt])
+}
+
+/// Incidente: periodo continuo em que um alvo ficou indisponivel.
+/// Aberto quando o alvo transita de "no ar" -> "fora"; fechado na volta.
+model Incident {
+  id           String    @id @default(cuid())
+  targetKey    String
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+  lastError    String?
+  // Quantas verificacoes falhas ocorreram durante o incidente.
+  failedChecks Int       @default(1)
+
+  @@index([targetKey, startedAt])
+  @@index([endedAt])
+}
+
+/// Contato que recebe o relatorio diario.
+model Contact {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

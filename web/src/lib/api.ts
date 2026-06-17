@@ -44,6 +44,35 @@ export const historyResponseSchema = z.object({
   ),
 })
 
+export const uptimeResponseSchema = z.object({
+  days: z.number(),
+  services: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      description: z.string(),
+      url: z.string(),
+      windowUptimePct: z.number().nullable(),
+      days: z.array(
+        z.object({
+          date: z.string(),
+          monitored: z.boolean(),
+          uptimePct: z.number().nullable(),
+          downtimeMs: z.number(),
+          incidents: z.array(
+            z.object({
+              startedAt: z.string(),
+              endedAt: z.string().nullable(),
+              durationMs: z.number(),
+              lastError: z.string().nullable(),
+            }),
+          ),
+        }),
+      ),
+    }),
+  ),
+})
+
 export const incidentsResponseSchema = z.object({
   incidents: z.array(
     z.object({
@@ -66,6 +95,9 @@ export type Summary = z.infer<typeof summarySchema>
 export type HistoryResponse = z.infer<typeof historyResponseSchema>
 export type IncidentsResponse = z.infer<typeof incidentsResponseSchema>
 export type Incident = IncidentsResponse['incidents'][number]
+export type UptimeResponse = z.infer<typeof uptimeResponseSchema>
+export type ServiceUptime = UptimeResponse['services'][number]
+export type UptimeDay = ServiceUptime['days'][number]
 
 async function getJson<T>(url: string, schema: z.ZodType<T>): Promise<T> {
   const res = await fetch(url)
@@ -76,6 +108,7 @@ async function getJson<T>(url: string, schema: z.ZodType<T>): Promise<T> {
 
 export const api = {
   status: () => getJson('/api/status', statusResponseSchema),
+  uptime: (days = 90) => getJson(`/api/uptime?days=${days}`, uptimeResponseSchema),
   history: (targetKey: string, hours: number) =>
     getJson(`/api/history/${targetKey}?hours=${hours}`, historyResponseSchema),
   incidents: (hours: number) => getJson(`/api/incidents?hours=${hours}`, incidentsResponseSchema),

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { getCurrentStatus, getHistory, getIncidents, getSummary } from '../stats/aggregate.js'
+import { getCurrentStatus, getHistory, getIncidents, getSummary, getUptimeTimeline } from '../stats/aggregate.js'
 import { targetByKey } from '../probe/targets.js'
 
 const historyQuery = z.object({
@@ -34,6 +34,17 @@ export async function publicRoutes(app: FastifyInstance): Promise<void> {
       current,
       summary: { last24h, last7d },
     }
+  })
+
+  app.get('/api/uptime', async (req, reply) => {
+    const parsed = z
+      .object({ days: z.coerce.number().int().positive().max(90).default(90) })
+      .safeParse(req.query)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'Parametros invalidos', details: parsed.error.flatten() })
+    }
+    const services = await getUptimeTimeline(parsed.data.days)
+    return { days: parsed.data.days, services }
   })
 
   app.get('/api/history/:targetKey', async (req, reply) => {

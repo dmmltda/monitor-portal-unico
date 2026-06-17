@@ -48,6 +48,24 @@ export function tzDayWindow(timeZone: string, ref: Date = new Date()): DayWindow
   return { start, end, dateLabel: `${y}-${pad(m + 1)}-${pad(d)}` }
 }
 
+/** Janelas de dia (mais antigo -> mais recente) para os ultimos `days` dias no fuso. */
+export function tzDayWindows(timeZone: string, days: number, ref: Date = new Date()): DayWindow[] {
+  const today = tzDayWindow(timeZone, ref)
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  const out: DayWindow[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const start = new Date(today.start.getTime() - i * 24 * 3_600_000)
+    const end = new Date(start.getTime() + 24 * 3_600_000)
+    out.push({ start, end, dateLabel: fmt.format(start) })
+  }
+  return out
+}
+
 export function formatDateBR(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone,

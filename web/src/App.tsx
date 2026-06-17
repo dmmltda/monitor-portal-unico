@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { api, type IncidentsResponse, type StatusResponse } from './lib/api'
+import {
+  api,
+  type CurrentStatus,
+  type IncidentsResponse,
+  type StatusResponse,
+  type UptimeResponse,
+} from './lib/api'
 import { fmtPct, fmtRelative, uptimeColor } from './lib/format'
-import { StatusCard } from './components/StatusCard'
+import { UptimeBars } from './components/UptimeBars'
 import { LatencyChart } from './components/LatencyChart'
 import { IncidentList } from './components/IncidentList'
 
@@ -9,6 +15,7 @@ const REFRESH_MS = 30_000
 
 export default function App() {
   const [status, setStatus] = useState<StatusResponse | null>(null)
+  const [uptime, setUptime] = useState<UptimeResponse | null>(null)
   const [incidents, setIncidents] = useState<IncidentsResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
@@ -16,8 +23,9 @@ export default function App() {
 
   const load = useCallback(async () => {
     try {
-      const [s, inc] = await Promise.all([api.status(), api.incidents(24 * 30)])
+      const [s, up, inc] = await Promise.all([api.status(), api.uptime(90), api.incidents(24 * 30)])
       setStatus(s)
+      setUptime(up)
       setIncidents(inc)
       setUpdatedAt(s.generatedAt)
       setError(null)
@@ -33,22 +41,23 @@ export default function App() {
     return () => clearInterval(id)
   }, [load])
 
-  const overall = useMemo(() => {
-    const list = status?.summary.last24h ?? []
-    const withData = list.filter((s) => s.uptimePct != null)
-    if (withData.length === 0) return null
-    return Number((withData.reduce((acc, s) => acc + (s.uptimePct ?? 0), 0) / withData.length).toFixed(2))
-  }, [status])
-
-  const anyDown = status?.current.some((c) => c.up === false) ?? false
-  const summaryByKey = useMemo(
-    () => new Map((status?.summary.last24h ?? []).map((s) => [s.key, s])),
+  const currentByKey = useMemo(
+    () => new Map<string, CurrentStatus>((status?.current ?? []).map((c) => [c.key, c])),
     [status],
   )
+
+  const overall = useMemo(() => {
+    const list = uptime?.services ?? []
+    const withData = list.filter((s) => s.windowUptimePct != null)
+    if (withData.length === 0) return null
+    return Number((withData.reduce((acc, s) => acc + (s.windowUptimePct ?? 0), 0) / withData.length).toFixed(2))
+  }, [uptime])
+
+  const anyDown = status?.current.some((c) => c.up === false) ?? false
   const selectedLabel = status?.current.find((c) => c.key === selected)?.label ?? ''
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-12">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400">
@@ -56,7 +65,7 @@ export default function App() {
           </p>
           <h1 className="mt-1 text-2xl font-bold text-slate-50 sm:text-3xl">Monitor · Portal Único Siscomex</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Latência e disponibilidade dos serviços do Portal Único de Comércio Exterior.
+            Disponibilidade e latência dos serviços do Portal Único de Comércio Exterior.
           </p>
         </div>
         <div className="text-right">
@@ -67,12 +76,13 @@ export default function App() {
               background: `${anyDown ? '#ef4444' : uptimeColor(overall)}1a`,
             }}
           >
-            <span className={`h-2.5 w-2.5 rounded-full ${anyDown ? 'bg-red-500' : 'bg-emerald-500'} ${anyDown ? '' : 'animate-pulse'}`} />
-            {anyDown ? 'Instabilidade detectada' : 'Todos os serviços no ar'}
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${anyDown ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'}`}
+            />
+            {anyDown ? 'Instabilidade detectada' : 'Todos os serviços operacionais'}
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            Uptime médio 24h: <span style={{ color: uptimeColor(overall) }}>{fmtPct(overall)}</span> · atualizado{' '}
-            {fmtRelative(updatedAt)}
+            Atualizado {fmtRelative(updatedAt)}
           </p>
         </div>
       </header>
@@ -83,20 +93,34 @@ export default function App() {
         </div>
       )}
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-2">
-        {(status?.current ?? []).map((c) => (
-          <StatusCard
-            key={c.key}
-            current={c}
-            summary24h={summaryByKey.get(c.key)}
-            selected={selected === c.key}
-            onSelect={() => setSelected(c.key)}
+      {/* Principal: barras de uptime dos últimos 90 dias */}
+      <section className="mt-8">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Uptime nos últimos 90 dias
+          </h2>
+          {overall != null && (
+            <span className="text-xs text-slate-500">
+              Média:{' '}
+              <span className="font-semibold" style={{ color: uptimeColor(overall) }}>
+                {fmtPct(overall)}
+              </span>
+            </span>
+          )}
+        </div>
+        {uptime ? (
+          <UptimeBars
+            services={uptime.services}
+            currentByKey={currentByKey}
+            selected={selected}
+            onSelect={setSelected}
           />
-        ))}
-        {!status && !error && (
-          <div className="col-span-full rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-10 text-center text-sm text-slate-500">
-            Carregando serviços…
-          </div>
+        ) : (
+          !error && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-10 text-center text-sm text-slate-500">
+              Carregando serviços…
+            </div>
+          )
         )}
       </section>
 
@@ -111,7 +135,7 @@ export default function App() {
       </section>
 
       <footer className="mt-10 border-t border-slate-800 pt-6 text-center text-xs text-slate-600">
-        Monitor independente · dados coletados a cada poucos minutos · relatório diário enviado às 18:00 (America/São_Paulo).
+        Monitor independente · coleta a cada poucos minutos · relatório diário às 18:00 (America/São_Paulo).
       </footer>
     </div>
   )

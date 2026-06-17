@@ -1,4 +1,6 @@
 import { prisma } from '../lib/db.js'
+import { env } from '../env.js'
+import { tzDayWindows } from '../lib/time.js'
 import { TARGETS, targetByKey } from '../probe/targets.js'
 
 export interface TargetCurrentStatus {
@@ -136,6 +138,114 @@ export async function getHistory(
       uptimePct: b.total > 0 ? Number(((b.up / b.total) * 100).toFixed(2)) : null,
       avgLatencyMs: avg(b.lat),
     }))
+}
+
+export interface UptimeDay {
+  date: string // YYYY-MM-DD no fuso configurado
+  monitored: boolean // havia monitoramento neste dia?
+  uptimePct: number | null
+  downtimeMs: number
+  incidents: { startedAt: string; endedAt: string | null; durationMs: number; lastError: string | null }[]
+}
+
+export interface ServiceUptime {
+  key: string
+  label: string
+  description: string
+  url: string
+  windowUptimePct: number | null
+  days: UptimeDay[]
+}
+
+/** Sobreposicao (ms) de [aStart,aEnd] com [bStart,bEnd]. */
+function overlapMs(aStart: number, aEnd: number, bStart: number, bEnd: number): number {
+  return Math.max(0, Math.min(aEnd, bEnd) - Math.max(aStart, bStart))
+}
+
+/**
+ * Timeline estilo status page: uptime por dia nos ultimos `days` dias.
+ * Uptime e derivado da DURACAO DOS INCIDENTES (nao do nº de probes), entao
+ * independe da frequencia de coleta. Dias antes do inicio do monitoramento
+ * ficam como "sem dados".
+ */
+export async function getUptimeTimeline(days: number): Promise<ServiceUptime[]> {
+  const windows = tzDayWindows(env.TZ, days)
+  const rangeStart = windows[0]!.start
+  const rangeEnd = windows[windows.length - 1]!.end
+  const now = Date.now()
+
+  return Promise.all(
+    TARGETS.map(async (t) => {
+      const [firstProbe, incidents] = await Promise.all([
+        prisma.probeResult.findFirst({
+          where: { targetKey: t.key },
+          orderBy: { checkedAt: 'asc' },
+          select: { checkedAt: true },
+        }),
+        prisma.incident.findMany({
+          where: {
+            targetKey: t.key,
+            startedAt: { lt: rangeEnd },
+            OR: [{ endedAt: null }, { endedAt: { gte: rangeStart } }],
+          },
+          orderBy: { startedAt: 'asc' },
+        }),
+      ])
+      const monitoringSince = firstProbe ? firstProbe.checkedAt.getTime() : null
+
+      let totalPeriod = 0
+      let totalDowntime = 0
+
+      const dayList: UptimeDay[] = windows.map((w) => {
+        const dayStart = w.start.getTime()
+        const dayEnd = w.end.getTime()
+        const monitored = monitoringSince != null && monitoringSince < dayEnd
+
+        if (!monitored) {
+          return { date: w.dateLabel, monitored: false, uptimePct: null, downtimeMs: 0, incidents: [] }
+        }
+
+        const effStart = Math.max(dayStart, monitoringSince as number)
+        const effEnd = Math.min(dayEnd, now)
+        const periodMs = Math.max(0, effEnd - effStart)
+
+        let downtimeMs = 0
+        const dayIncidents = incidents
+          .filter((i) => i.startedAt.getTime() < dayEnd && (i.endedAt?.getTime() ?? now) >= dayStart)
+          .map((i) => {
+            const s = i.startedAt.getTime()
+            const e = i.endedAt?.getTime() ?? now
+            downtimeMs += overlapMs(s, e, effStart, effEnd)
+            return {
+              startedAt: i.startedAt.toISOString(),
+              endedAt: i.endedAt ? i.endedAt.toISOString() : null,
+              durationMs: e - s,
+              lastError: i.lastError,
+            }
+          })
+
+        totalPeriod += periodMs
+        totalDowntime += downtimeMs
+
+        const uptimePct =
+          periodMs > 0 ? Math.max(0, Math.min(100, Number((((periodMs - downtimeMs) / periodMs) * 100).toFixed(3)))) : null
+
+        return { date: w.dateLabel, monitored: true, uptimePct, downtimeMs, incidents: dayIncidents }
+      })
+
+      const windowUptimePct =
+        totalPeriod > 0 ? Number((((totalPeriod - totalDowntime) / totalPeriod) * 100).toFixed(3)) : null
+
+      return {
+        key: t.key,
+        label: t.label,
+        description: t.description,
+        url: t.url,
+        windowUptimePct,
+        days: dayList,
+      }
+    }),
+  )
 }
 
 /** Incidentes recentes (abertos primeiro). */

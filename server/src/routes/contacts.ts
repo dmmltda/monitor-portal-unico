@@ -68,6 +68,28 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(201).send({ contact })
   })
 
+  // Importacao em massa: cola um texto (nomes, ; , quebras de linha) e extrai os e-mails.
+  app.post('/api/admin/contacts/bulk', async (req, reply) => {
+    const parsed = z.object({ text: z.string().max(200_000) }).safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'Texto invalido' })
+    }
+    const matches = parsed.data.text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) ?? []
+    const emails = [...new Set(matches.map((e) => e.toLowerCase()))]
+    let added = 0
+    let skipped = 0
+    for (const email of emails) {
+      try {
+        await prisma.contact.create({ data: { email, unsubscribeToken: randomBytes(18).toString('base64url') } })
+        added += 1
+      } catch (err) {
+        if ((err as { code?: string }).code === 'P2002') skipped += 1
+        else throw err
+      }
+    }
+    return { found: emails.length, added, skipped }
+  })
+
   app.patch('/api/admin/contacts/:id', async (req, reply) => {
     const { id } = req.params as { id: string }
     const parsed = updateContact.safeParse(req.body)

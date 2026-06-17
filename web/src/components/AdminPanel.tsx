@@ -54,6 +54,8 @@ export function AdminPanel() {
 
   const [newEmail, setNewEmail] = useState('')
   const [newName, setNewName] = useState('')
+  const [bulkText, setBulkText] = useState('')
+  const [showBulk, setShowBulk] = useState(false)
 
   const [logRows, setLogRows] = useState<LogRow[]>([])
   const [logMeta, setLogMeta] = useState({ total: 0, sent: 0, failed: 0 })
@@ -192,6 +194,26 @@ export function AdminPanel() {
   const removeContact = (c: Contact) =>
     withMsg(() => adminFetch(`/api/admin/contacts/${c.id}`, { method: 'DELETE' }), 'Contato removido.')
 
+  async function bulkImport() {
+    if (!bulkText.trim()) return
+    setBusy(true)
+    setMsg(null)
+    try {
+      const r = (await adminFetch('/api/admin/contacts/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ text: bulkText }),
+      })) as { found: number; added: number; skipped: number }
+      setMsg(`Importação: ${r.added} adicionado(s), ${r.skipped} já existia(m), de ${r.found} e-mail(s) encontrados no texto.`)
+      setBulkText('')
+      setShowBulk(false)
+      await loadData()
+    } catch (e) {
+      setMsg((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function sendNow() {
     setBusy(true)
     setMsg(null)
@@ -320,6 +342,47 @@ export function AdminPanel() {
           >
             Adicionar
           </button>
+        </div>
+
+        {/* Importação em massa */}
+        <div className="mt-3">
+          {!showBulk ? (
+            <button onClick={() => setShowBulk(true)} className="text-xs text-indigo-400 hover:text-indigo-300">
+              + Importar vários de uma vez (colar lista)
+            </button>
+          ) : (
+            <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+              <p className="mb-2 text-xs text-slate-400">
+                Cole a lista (pode ter nomes, vírgulas, ponto e vírgula, quebras de linha — extraio só os e-mails,
+                ignoro duplicados):
+              </p>
+              <textarea
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                rows={5}
+                placeholder="fulano@empresa.com; ciclano@empresa.com; Nome <beltrano@empresa.com> ..."
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none focus:border-indigo-500"
+              />
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={bulkImport}
+                  disabled={busy || !bulkText.trim()}
+                  className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-50"
+                >
+                  Importar
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBulk(false)
+                    setBulkText('')
+                  }}
+                  className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 hover:text-slate-200"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <ul className="mt-4 divide-y divide-slate-800">

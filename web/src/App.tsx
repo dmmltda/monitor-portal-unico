@@ -175,6 +175,11 @@ export default function App() {
         <p className="mt-2">
           Monitor independente · coleta a cada poucos minutos · relatório diário às 18:00 (America/São_Paulo).
         </p>
+        <p className="mt-3">
+          <a href="#admin" className="text-slate-500 hover:text-indigo-300">
+            Acesso administrativo (login)
+          </a>
+        </p>
       </footer>
     </div>
   )

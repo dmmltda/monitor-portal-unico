@@ -59,7 +59,7 @@ export default function App() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-12">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400">
             Disponibilidade · Tempo real
@@ -95,8 +95,15 @@ export default function App() {
         </div>
       )}
 
-      {/* Principal: barras de uptime dos últimos 90 dias */}
-      <section className="mt-8">
+      {/* Tempo de resposta do serviço selecionado (gráfico principal) */}
+      {selected && (
+        <section className="mt-8">
+          <LatencyChart targetKey={selected} targetLabel={selectedLabel} />
+        </section>
+      )}
+
+      {/* Barras de uptime dos últimos 90 dias */}
+      <section className="mt-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
             Uptime nos últimos 90 dias
@@ -125,12 +132,6 @@ export default function App() {
           )
         )}
       </section>
-
-      {selected && (
-        <section className="mt-6">
-          <LatencyChart targetKey={selected} targetLabel={selectedLabel} />
-        </section>
-      )}
 
       <section className="mt-6">
         <IncidentList incidents={incidents?.incidents ?? []} />

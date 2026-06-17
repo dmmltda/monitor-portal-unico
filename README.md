@@ -28,6 +28,16 @@ Site público com dashboard moderno que monitora a **disponibilidade e a latênc
 
 Os alvos monitorados ficam em [`server/src/probe/targets.ts`](server/src/probe/targets.ts).
 
+### Check autenticado (mTLS) — opcional
+
+Além do check de reachability (GET), é possível habilitar um **deep check autenticado**: o
+monitor autentica de verdade no Portal Único usando um **certificado A1 (.pfx)** via mTLS
+(`POST /portal/api/autenticar` com header `Role-Type`) e considera o serviço no ar quando a
+API devolve o token (`X-CSRF-Token`). Isso adiciona o serviço **"API Autenticada (mTLS)"** ao
+dashboard e ao relatório. Basta configurar `PU_CERT_PFX_PATH` (ou `PU_CERT_PFX_BASE64`),
+`PU_CERT_PASSPHRASE`, `PU_ROLE_TYPE` e `PU_AUTH_ENV` — sem isso, o check fica desativado.
+O probe roda a cada 2 min (acima do mínimo de 60s entre autenticações exigido pelo PU).
+
 ## Rodando localmente
 
 ```bash

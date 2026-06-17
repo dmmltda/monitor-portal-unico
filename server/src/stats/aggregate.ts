@@ -1,7 +1,7 @@
 import { prisma } from '../lib/db.js'
 import { env } from '../env.js'
 import { tzDayWindows } from '../lib/time.js'
-import { TARGETS, targetByKey } from '../probe/targets.js'
+import { ALL_TARGETS, targetByKey } from '../probe/targets.js'
 
 export interface TargetCurrentStatus {
   key: string
@@ -52,7 +52,7 @@ function avg(values: number[]): number | null {
 /** Status atual de cada alvo (ultima verificacao). */
 export async function getCurrentStatus(): Promise<TargetCurrentStatus[]> {
   return Promise.all(
-    TARGETS.map(async (t) => {
+    ALL_TARGETS.map(async (t) => {
       const last = await prisma.probeResult.findFirst({
         where: { targetKey: t.key },
         orderBy: { checkedAt: 'desc' },
@@ -76,7 +76,7 @@ export async function getCurrentStatus(): Promise<TargetCurrentStatus[]> {
 export async function getSummary(rangeHours: number): Promise<TargetSummary[]> {
   const since = new Date(Date.now() - rangeHours * 3_600_000)
   return Promise.all(
-    TARGETS.map(async (t) => {
+    ALL_TARGETS.map(async (t) => {
       const rows = await prisma.probeResult.findMany({
         where: { targetKey: t.key, checkedAt: { gte: since } },
         select: { ok: true, latencyMs: true },
@@ -175,7 +175,7 @@ export async function getUptimeTimeline(days: number): Promise<ServiceUptime[]> 
   const now = Date.now()
 
   return Promise.all(
-    TARGETS.map(async (t) => {
+    ALL_TARGETS.map(async (t) => {
       const [firstProbe, incidents] = await Promise.all([
         prisma.probeResult.findFirst({
           where: { targetKey: t.key },

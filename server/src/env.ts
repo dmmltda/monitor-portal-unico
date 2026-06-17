@@ -31,6 +31,16 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional().default(''),
   EMAIL_FROM: z.string().default('Monitor Portal Unico <onboarding@resend.dev>'),
 
+  // ----- Check autenticado (mTLS) no Portal Unico — opcional -----
+  // Forneca o .pfx por caminho de arquivo (local) OU base64 (Railway).
+  PU_CERT_PFX_PATH: z.string().optional().default(''),
+  PU_CERT_PFX_BASE64: z.string().optional().default(''),
+  PU_CERT_PASSPHRASE: z.string().optional().default(''),
+  // Perfil de acesso enviado no header Role-Type (ex: IMPEXP, DESPACHANTE, TRANSPORTADOR).
+  PU_ROLE_TYPE: z.string().default('IMPEXP'),
+  // Ambiente do PU usado no check autenticado: prod | val
+  PU_AUTH_ENV: z.enum(['prod', 'val']).default('prod'),
+
   ADMIN_TOKEN: z.string().default(''),
   PUBLIC_BASE_URL: z.string().optional().default(''),
 

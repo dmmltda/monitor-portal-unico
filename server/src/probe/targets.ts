@@ -1,27 +1,23 @@
+import { env } from '../env.js'
+
 /**
  * Alvos monitorados no Portal Unico Siscomex.
  *
- * O Portal Unico exige certificado digital (ICP-Brasil) para consumir os
- * dados das APIs, e NAO expoe um endpoint publico de health/status. Para um
- * monitor de DISPONIBILIDADE isso nao e necessario: fazemos um GET nao
- * intrusivo nos hosts conhecidos e medimos o tempo de resposta + status HTTP.
- *
- * Regra de "no ar": recebemos uma resposta HTTP com status < 500.
- * Ou seja, 200/301/401/403/404 contam como NO AR (o servico respondeu).
- * Timeout, erro de rede/TLS ou status >= 500 contam como FORA.
+ * Dois tipos de check:
+ *  1) Reachability (REACHABILITY_TARGETS): GET nao intrusivo nos hosts conhecidos,
+ *     medindo status HTTP + latencia. Status < 500 = no ar.
+ *  2) Autenticado (AUTH_TARGET): POST mTLS em /portal/api/autenticar com o
+ *     certificado digital, medindo se a API responde com o token (X-CSRF-Token).
+ *     So entra quando um certificado esta configurado (PU_CERT_PFX_*).
  */
 export interface ProbeTarget {
-  /** Chave estavel usada no banco e na API. */
   key: string
-  /** Rotulo exibido no dashboard. */
   label: string
-  /** URL alvo (GET). */
   url: string
-  /** Descricao curta do que representa. */
   description: string
 }
 
-export const TARGETS: ProbeTarget[] = [
+export const REACHABILITY_TARGETS: ProbeTarget[] = [
   {
     key: 'portal-web',
     label: 'Portal Unico (Web)',
@@ -48,4 +44,21 @@ export const TARGETS: ProbeTarget[] = [
   },
 ]
 
-export const targetByKey = new Map(TARGETS.map((t) => [t.key, t]))
+/** Indica se o check autenticado (mTLS) esta habilitado por configuracao. */
+export const AUTH_ENABLED = Boolean(env.PU_CERT_PFX_PATH || env.PU_CERT_PFX_BASE64)
+
+const AUTH_HOST = env.PU_AUTH_ENV === 'val' ? 'val.portalunico.siscomex.gov.br' : 'portalunico.siscomex.gov.br'
+
+export const AUTH_TARGET: ProbeTarget = {
+  key: 'api-autenticada',
+  label: 'API Autenticada (mTLS)',
+  url: `https://${AUTH_HOST}/portal/api/autenticar`,
+  description: 'Autenticacao real no Portal Unico via certificado digital (recebe o X-CSRF-Token).',
+}
+
+/** Todos os alvos exibidos no dashboard (reachability + autenticado, se ativo). */
+export const ALL_TARGETS: ProbeTarget[] = AUTH_ENABLED
+  ? [...REACHABILITY_TARGETS, AUTH_TARGET]
+  : [...REACHABILITY_TARGETS]
+
+export const targetByKey = new Map(ALL_TARGETS.map((t) => [t.key, t]))

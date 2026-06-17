@@ -1,6 +1,7 @@
 import { env } from '../env.js'
 import { prisma } from '../lib/db.js'
-import { TARGETS, type ProbeTarget } from './targets.js'
+import { AUTH_ENABLED, REACHABILITY_TARGETS, type ProbeTarget } from './targets.js'
+import { checkAuth } from './authProbe.js'
 
 export interface ProbeOutcome {
   targetKey: string
@@ -94,7 +95,9 @@ async function persistOutcome(outcome: ProbeOutcome): Promise<void> {
 
 /** Executa o probe de todos os alvos em paralelo e persiste tudo. */
 export async function runProbeCycle(): Promise<ProbeOutcome[]> {
-  const outcomes = await Promise.all(TARGETS.map(checkTarget))
+  const checks: Promise<ProbeOutcome>[] = REACHABILITY_TARGETS.map(checkTarget)
+  if (AUTH_ENABLED) checks.push(checkAuth())
+  const outcomes = await Promise.all(checks)
   for (const outcome of outcomes) {
     await persistOutcome(outcome)
   }

@@ -1,7 +1,7 @@
 import { env } from '../env.js'
 import { prisma } from '../lib/db.js'
 import { formatDateBR, formatDuration, formatTimeBR, tzDayWindow, type DayWindow } from '../lib/time.js'
-import { TARGETS, targetByKey } from '../probe/targets.js'
+import { ALL_TARGETS, targetByKey } from '../probe/targets.js'
 
 interface TargetDayStat {
   key: string
@@ -52,7 +52,7 @@ export async function buildDailyReport(ref: Date = new Date()): Promise<DailyRep
   let upChecksAll = 0
 
   const perTarget: TargetDayStat[] = await Promise.all(
-    TARGETS.map(async (t) => {
+    ALL_TARGETS.map(async (t) => {
       const rows = await prisma.probeResult.findMany({
         where: { targetKey: t.key, checkedAt: { gte: start, lt: end } },
         select: { ok: true, latencyMs: true },

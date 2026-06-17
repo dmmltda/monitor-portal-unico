@@ -12,6 +12,7 @@ import { LatencyChart } from './components/LatencyChart'
 import { IncidentList } from './components/IncidentList'
 import { Brand } from './components/Brand'
 import { ServiceSelector } from './components/ServiceSelector'
+import { Methodology } from './components/Methodology'
 
 const REFRESH_MS = 30_000
 
@@ -22,6 +23,13 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
+  const [hash, setHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''))
+
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   const load = useCallback(async () => {
     try {
@@ -57,6 +65,8 @@ export default function App() {
 
   const anyDown = status?.current.some((c) => c.up === false) ?? false
   const selectedLabel = status?.current.find((c) => c.key === selected)?.label ?? ''
+
+  if (hash === '#metodologia') return <Methodology />
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-12">
@@ -143,7 +153,15 @@ export default function App() {
       </section>
 
       <footer className="mt-10 border-t border-slate-800 pt-6 text-center text-xs text-slate-600">
-        Monitor independente · coleta a cada poucos minutos · relatório diário às 18:00 (America/São_Paulo).
+        <p>
+          <a href="#metodologia" className="text-indigo-400 hover:text-indigo-300">
+            Metodologia &amp; transparência
+          </a>{' '}
+          · como medimos e como você pode conferir os dados.
+        </p>
+        <p className="mt-2">
+          Monitor independente · coleta a cada poucos minutos · relatório diário às 18:00 (America/São_Paulo).
+        </p>
       </footer>
     </div>
   )

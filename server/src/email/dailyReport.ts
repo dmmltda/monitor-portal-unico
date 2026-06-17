@@ -192,6 +192,7 @@ export function renderDailyEmail(
         ? `<br/>Nao quer mais receber? <a href="${unsubscribeUrl}" style="color:#64748b;text-decoration:underline;">Cancelar inscricao</a>.`
         : ''
     }</p>
+    <p style="color:#3f4a5c;font-size:11px;text-align:center;margin:10px 0 0;line-height:1.6;">Seus dados (nome e e-mail) sao tratados exclusivamente para o envio deste relatorio de disponibilidade, em conformidade com a Lei Geral de Protecao de Dados (LGPD &mdash; Lei n&ordm; 13.709/2018). A base legal e o legitimo interesse, e voce pode cancelar o recebimento a qualquer momento pelo link acima.</p>
   </div>
 </body></html>`
 
@@ -209,6 +210,7 @@ export function renderDailyEmail(
           .map((i) => `  * ${i.targetLabel}: ${formatTimeBR(i.startedAt, env.TZ)} -> ${i.endedAt ? formatTimeBR(i.endedAt, env.TZ) : 'em aberto'} (${formatDuration(i.durationMs)})`)
           .join('\n')}`,
     '',
+    'Seus dados (nome e e-mail) sao tratados exclusivamente para o envio deste relatorio, em conformidade com a LGPD (Lei 13.709/2018). Base legal: legitimo interesse. Cancele quando quiser no link abaixo.',
     unsubscribeUrl ? `Cancelar inscricao: ${unsubscribeUrl}` : '',
   ].join('\n')
 

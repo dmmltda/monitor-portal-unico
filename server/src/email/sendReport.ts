@@ -2,6 +2,7 @@ import { Resend } from 'resend'
 import { env } from '../env.js'
 import { prisma } from '../lib/db.js'
 import { tzDayWindow } from '../lib/time.js'
+import { DAILY_REPORT_KEY, getBoolSetting } from '../lib/settings.js'
 import { buildDailyReport, renderDailyEmail } from './dailyReport.js'
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null
@@ -42,8 +43,10 @@ async function releaseSend(reportDate: string, email: string): Promise<void> {
 export async function sendDailyReport(opts: { force?: boolean; bypassLock?: boolean } = {}): Promise<SendResult> {
   const reportDate = tzDayWindow(env.TZ).dateLabel
 
-  if (!opts.force && !env.DAILY_REPORT_ENABLED) {
-    return { sent: 0, alreadySent: 0, skipped: true, reason: 'DAILY_REPORT_ENABLED=false', reportDate }
+  // Agendamento: configuracao do banco (painel admin) tem prioridade sobre a env.
+  const enabled = (await getBoolSetting(DAILY_REPORT_KEY)) ?? env.DAILY_REPORT_ENABLED
+  if (!opts.force && !enabled) {
+    return { sent: 0, alreadySent: 0, skipped: true, reason: 'agendamento desativado', reportDate }
   }
   if (!resend) {
     console.warn('[email] RESEND_API_KEY ausente — relatorio nao enviado.')

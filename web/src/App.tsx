@@ -13,6 +13,7 @@ import { IncidentList } from './components/IncidentList'
 import { Brand } from './components/Brand'
 import { ServiceSelector } from './components/ServiceSelector'
 import { Methodology } from './components/Methodology'
+import { AdminPanel } from './components/AdminPanel'
 
 const REFRESH_MS = 30_000
 
@@ -67,6 +68,7 @@ export default function App() {
   const selectedLabel = status?.current.find((c) => c.key === selected)?.label ?? ''
 
   if (hash === '#metodologia') return <Methodology />
+  if (hash === '#admin') return <AdminPanel />
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-12">

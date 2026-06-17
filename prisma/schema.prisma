@@ -52,6 +52,13 @@ model DailyReportSend {
   @@index([reportDate])
 }
 
+/// Configuracoes editaveis em runtime (ex: agendamento do relatorio ligado/desligado).
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 /// Contato que recebe o relatorio diario.
 model Contact {
   id        String   @id @default(cuid())

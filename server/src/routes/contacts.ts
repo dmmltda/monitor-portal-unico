@@ -6,6 +6,7 @@ import { tzDayWindow } from '../lib/time.js'
 import { sendDailyReport } from '../email/sendReport.js'
 import { runProbeCycle } from '../probe/runProbe.js'
 import { debugAuth } from '../probe/authProbe.js'
+import { DAILY_REPORT_KEY, getBoolSetting, setBoolSetting } from '../lib/settings.js'
 import { buildDailyReport, renderDailyEmail } from '../email/dailyReport.js'
 import { requireAdmin } from './auth.js'
 
@@ -21,6 +22,28 @@ const updateContact = z.object({
 
 export async function adminRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', requireAdmin)
+
+  // ---- Sessao / configuracoes ----
+  // Tambem serve para validar o login (200 = token correto).
+  app.get('/api/admin/settings', async () => {
+    const dailyReportEnabled = (await getBoolSetting(DAILY_REPORT_KEY)) ?? env.DAILY_REPORT_ENABLED
+    return {
+      dailyReportEnabled,
+      dailyReportCron: env.DAILY_REPORT_CRON,
+      timezone: env.TZ,
+      emailFrom: env.EMAIL_FROM,
+      authCheckEnabled: Boolean(env.PU_CERT_PFX_PATH || env.PU_CERT_PFX_BASE64),
+    }
+  })
+
+  app.patch('/api/admin/settings', async (req, reply) => {
+    const parsed = z.object({ dailyReportEnabled: z.boolean() }).safeParse(req.body)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'Dados invalidos', details: parsed.error.flatten() })
+    }
+    await setBoolSetting(DAILY_REPORT_KEY, parsed.data.dailyReportEnabled)
+    return { dailyReportEnabled: parsed.data.dailyReportEnabled }
+  })
 
   // ---- Contatos ----
   app.get('/api/admin/contacts', async () => {

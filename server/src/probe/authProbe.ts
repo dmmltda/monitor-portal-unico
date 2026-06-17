@@ -151,22 +151,25 @@ export function checkAuth(): Promise<ProbeOutcome> {
           timeout: env.PROBE_TIMEOUT_MS,
         },
         (res) => {
-          res.on('data', () => {})
+          let body = ''
+          res.on('data', (c) => {
+            if (body.length < 600) body += c.toString()
+          })
           res.on('end', () => {
             const latencyMs = Date.now() - started
             const status = res.statusCode ?? null
             const gotToken = Boolean(res.headers['set-token'] || res.headers['x-csrf-token'])
-            if (gotToken) {
-              resolve({ targetKey: key, ok: true, statusCode: status, latencyMs, error: null })
-            } else {
-              resolve({
-                targetKey: key,
-                ok: false,
-                statusCode: status,
-                latencyMs,
-                error: `Sem token na resposta (HTTP ${status ?? '??'})`,
-              })
-            }
+            // PLAT-ER2033 = "ja autenticou nos ultimos 60s" => a autenticacao
+            // ESTA funcionando (o PU so exige reaproveitar o token). Conta como no ar.
+            const recentAuth = status === 422 && /PLAT-ER2033|60 segundos/i.test(body)
+            const ok = gotToken || recentAuth
+            resolve({
+              targetKey: key,
+              ok,
+              statusCode: status,
+              latencyMs,
+              error: ok ? null : `Autenticacao recusada (HTTP ${status ?? '??'})`,
+            })
           })
         },
       )

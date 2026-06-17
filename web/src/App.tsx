@@ -10,6 +10,7 @@ import { fmtPct, fmtRelative, uptimeColor } from './lib/format'
 import { UptimeBars } from './components/UptimeBars'
 import { LatencyChart } from './components/LatencyChart'
 import { IncidentList } from './components/IncidentList'
+import { Brand } from './components/Brand'
 
 const REFRESH_MS = 30_000
 
@@ -68,24 +69,25 @@ export default function App() {
             Disponibilidade e latência dos serviços do Portal Único de Comércio Exterior.
           </p>
         </div>
-        <div className="text-right">
-          <div
-            className="inline-flex items-center gap-2 rounded-full px-4 py-2 font-semibold"
-            style={{
-              color: anyDown ? '#ef4444' : uptimeColor(overall),
-              background: `${anyDown ? '#ef4444' : uptimeColor(overall)}1a`,
-            }}
-          >
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${anyDown ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'}`}
-            />
-            {anyDown ? 'Instabilidade detectada' : 'Todos os serviços operacionais'}
-          </div>
-          <p className="mt-2 text-xs text-slate-500">
-            Atualizado {fmtRelative(updatedAt)}
-          </p>
-        </div>
+        <Brand />
       </header>
+
+      {/* Faixa de status geral */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/50 px-5 py-3">
+        <div
+          className="inline-flex items-center gap-2 rounded-full px-4 py-2 font-semibold"
+          style={{
+            color: anyDown ? '#ef4444' : uptimeColor(overall),
+            background: `${anyDown ? '#ef4444' : uptimeColor(overall)}1a`,
+          }}
+        >
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${anyDown ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'}`}
+          />
+          {anyDown ? 'Instabilidade detectada' : 'Todos os serviços operacionais'}
+        </div>
+        <p className="text-xs text-slate-500">Atualizado {fmtRelative(updatedAt)}</p>
+      </div>
 
       {error && (
         <div className="mt-6 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">

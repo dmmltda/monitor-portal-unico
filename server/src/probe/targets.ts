@@ -17,7 +17,27 @@ export interface ProbeTarget {
   description: string
 }
 
+// Ordem define os pills, as barras, o relatorio e o servico aberto por padrao
+// (o primeiro = DUIMP).
 export const REACHABILITY_TARGETS: ProbeTarget[] = [
+  {
+    key: 'duimp',
+    label: 'DUIMP (Importacao)',
+    url: 'https://portalunico.siscomex.gov.br/dimp/api/ext/duimp',
+    description: 'API da Declaracao Unica de Importacao (DUIMP).',
+  },
+  {
+    key: 'catalogo',
+    label: 'Catalogo de Produtos',
+    url: 'https://portalunico.siscomex.gov.br/catp/api/ext/produto',
+    description: 'API do Catalogo de Produtos (CATP).',
+  },
+  {
+    key: 'due',
+    label: 'DU-E (Exportacao)',
+    url: 'https://portalunico.siscomex.gov.br/due/api/ext/due',
+    description: 'API da Declaracao Unica de Exportacao (DU-E).',
+  },
   {
     key: 'portal-web',
     label: 'Portal Unico (Web)',
@@ -29,24 +49,6 @@ export const REACHABILITY_TARGETS: ProbeTarget[] = [
     label: 'API Validacao',
     url: 'https://val.portalunico.siscomex.gov.br/',
     description: 'Ambiente de validacao das APIs do Portal Unico.',
-  },
-  {
-    key: 'duimp',
-    label: 'DUIMP (Importacao)',
-    url: 'https://portalunico.siscomex.gov.br/dimp/api/ext/duimp',
-    description: 'API da Declaracao Unica de Importacao (DUIMP).',
-  },
-  {
-    key: 'due',
-    label: 'DU-E (Exportacao)',
-    url: 'https://portalunico.siscomex.gov.br/due/api/ext/due',
-    description: 'API da Declaracao Unica de Exportacao (DU-E).',
-  },
-  {
-    key: 'catalogo',
-    label: 'Catalogo de Produtos',
-    url: 'https://portalunico.siscomex.gov.br/catp/api/ext/produto',
-    description: 'API do Catalogo de Produtos (CATP).',
   },
   {
     key: 'docs',

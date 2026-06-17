@@ -25,12 +25,6 @@ export const REACHABILITY_TARGETS: ProbeTarget[] = [
     description: 'Aplicacao web do Portal Unico de Comercio Exterior.',
   },
   {
-    key: 'api-producao',
-    label: 'API Producao',
-    url: 'https://portalunico.siscomex.gov.br/',
-    description: 'Gateway de producao das APIs do Portal Unico.',
-  },
-  {
     key: 'api-validacao',
     label: 'API Validacao',
     url: 'https://val.portalunico.siscomex.gov.br/',

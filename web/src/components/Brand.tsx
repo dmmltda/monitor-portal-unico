@@ -35,7 +35,7 @@ export function Brand() {
         rel="noreferrer"
         className="text-xs text-slate-500 transition hover:text-slate-300"
       >
-        powered by <span className="font-semibold text-violet-400">dati.</span>
+        powered by <span className="font-semibold" style={{ color: '#253f78' }}>dati.</span>
       </a>
     </div>
   )

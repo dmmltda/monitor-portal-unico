@@ -16,7 +16,30 @@ interface Settings {
   authCheckEnabled: boolean
 }
 
+interface LogRow {
+  id: string
+  reportDate: string
+  email: string
+  sentAt: string
+  status: string
+  error: string | null
+  providerId: string | null
+}
+
 const TOKEN_KEY = 'mpu_admin_token'
+
+function fmtDateTime(iso: string): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(new Date(iso))
+}
+
+const todaySP = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
 
 export function AdminPanel() {
   const [token, setToken] = useState<string>(() => sessionStorage.getItem(TOKEN_KEY) ?? '')
@@ -31,6 +54,11 @@ export function AdminPanel() {
 
   const [newEmail, setNewEmail] = useState('')
   const [newName, setNewName] = useState('')
+
+  const [logRows, setLogRows] = useState<LogRow[]>([])
+  const [logMeta, setLogMeta] = useState({ total: 0, sent: 0, failed: 0 })
+  const [logDate, setLogDate] = useState<string>(todaySP())
+  const [logOffset, setLogOffset] = useState(0)
 
   const adminFetch = useCallback(
     async (path: string, init: RequestInit = {}, authToken = token) => {
@@ -64,6 +92,21 @@ export function AdminPanel() {
     [adminFetch, token],
   )
 
+  async function loadLog(reset: boolean, dateOverride?: string) {
+    const date = dateOverride ?? logDate
+    const offset = reset ? 0 : logOffset
+    try {
+      const qs = new URLSearchParams({ limit: '100', offset: String(offset) })
+      if (date) qs.set('reportDate', date)
+      const r = await adminFetch(`/api/admin/send-log?${qs.toString()}`)
+      setLogMeta({ total: r.total, sent: r.sent, failed: r.failed })
+      setLogRows((prev) => (reset ? r.logs : [...prev, ...r.logs]))
+      setLogOffset(offset + r.logs.length)
+    } catch (e) {
+      setMsg((e as Error).message)
+    }
+  }
+
   useEffect(() => {
     if (!token) return
     loadData(token)
@@ -74,6 +117,11 @@ export function AdminPanel() {
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (authed) void loadLog(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed])
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault()
@@ -144,14 +192,20 @@ export function AdminPanel() {
   const removeContact = (c: Contact) =>
     withMsg(() => adminFetch(`/api/admin/contacts/${c.id}`, { method: 'DELETE' }), 'Contato removido.')
 
-  const sendNow = () =>
-    withMsg(async () => {
-      const r = (await adminFetch('/api/admin/send-report', { method: 'POST' })) as {
-        sent: number
-        alreadySent: number
-      }
-      setMsg(`Relatório: ${r.sent} enviado(s), ${r.alreadySent} já recebido(s) hoje.`)
-    }, 'Relatório processado.')
+  async function sendNow() {
+    setBusy(true)
+    setMsg(null)
+    try {
+      const r = (await adminFetch('/api/admin/send-report', { method: 'POST' })) as { contacts: number }
+      setMsg(`Envio iniciado para ${r.contacts} contato(s) ativo(s). O histórico abaixo atualiza em instantes.`)
+      setTimeout(() => void loadLog(true, todaySP()), 3000)
+      setTimeout(() => void loadLog(true, todaySP()), 12000)
+    } catch (e) {
+      setMsg((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   // ---- Tela de login ----
   if (!authed) {
@@ -295,6 +349,87 @@ export function AdminPanel() {
             </li>
           ))}
         </ul>
+      </section>
+
+      {/* Histórico de envios */}
+      <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold text-slate-100">Histórico de envios</h2>
+          <div className="flex items-center gap-2 text-xs">
+            <input
+              type="date"
+              value={logDate}
+              onChange={(e) => {
+                setLogDate(e.target.value)
+                void loadLog(true, e.target.value)
+              }}
+              className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200"
+            />
+            <button
+              onClick={() => {
+                setLogDate('')
+                void loadLog(true, '')
+              }}
+              className="text-slate-400 hover:text-slate-200"
+            >
+              Todos
+            </button>
+            <button onClick={() => void loadLog(true)} className="text-indigo-400 hover:text-indigo-300">
+              Atualizar
+            </button>
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          <span className="font-semibold text-emerald-400">{logMeta.sent} enviados</span> ·{' '}
+          <span className="font-semibold text-red-400">{logMeta.failed} falhas</span> · {logMeta.total} no total
+          {logDate ? ` (${logDate})` : ' (todos os dias)'}
+        </p>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-slate-500">
+                <th className="border-b border-slate-800 py-2 pr-3 font-semibold">Data / Hora</th>
+                <th className="border-b border-slate-800 py-2 pr-3 font-semibold">E-mail</th>
+                <th className="border-b border-slate-800 py-2 pr-3 font-semibold">Status</th>
+                <th className="border-b border-slate-800 py-2 font-semibold">Detalhe</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logRows.map((l) => (
+                <tr key={l.id}>
+                  <td className="whitespace-nowrap border-b border-slate-800/60 py-2 pr-3 text-slate-400">
+                    {fmtDateTime(l.sentAt)}
+                  </td>
+                  <td className="border-b border-slate-800/60 py-2 pr-3 text-slate-200">{l.email}</td>
+                  <td className="border-b border-slate-800/60 py-2 pr-3">
+                    <span className={l.status === 'sent' ? 'text-emerald-400' : 'text-red-400'}>
+                      {l.status === 'sent' ? 'Enviado' : 'Falhou'}
+                    </span>
+                  </td>
+                  <td className="border-b border-slate-800/60 py-2 text-slate-500">
+                    {l.error ?? (l.providerId ? `id ${l.providerId.slice(0, 12)}…` : '—')}
+                  </td>
+                </tr>
+              ))}
+              {logRows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-4 text-center text-slate-500">
+                    Nenhum envio registrado{logDate ? ' neste dia' : ''}.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {logRows.length < logMeta.total && (
+          <button
+            onClick={() => void loadLog(false)}
+            disabled={busy}
+            className="mt-3 text-sm text-indigo-400 hover:text-indigo-300"
+          >
+            Carregar mais ({logMeta.total - logRows.length} restantes)
+          </button>
+        )}
       </section>
     </div>
   )

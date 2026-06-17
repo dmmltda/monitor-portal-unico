@@ -52,6 +52,21 @@ model DailyReportSend {
   @@index([reportDate])
 }
 
+/// Historico/auditoria de cada envio (enviado ou falhou). Separado da trava.
+model EmailLog {
+  id         String   @id @default(cuid())
+  reportDate String // YYYY-MM-DD no fuso
+  email      String
+  sentAt     DateTime @default(now())
+  status     String // 'sent' | 'failed'
+  error      String?
+  providerId String? // id da mensagem no Resend, quando enviado
+
+  @@index([sentAt])
+  @@index([reportDate])
+  @@index([status])
+}
+
 /// Configuracoes editaveis em runtime (ex: agendamento do relatorio ligado/desligado).
 model Setting {
   key       String   @id

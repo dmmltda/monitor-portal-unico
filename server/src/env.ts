@@ -27,6 +27,8 @@ const envSchema = z.object({
 
   DAILY_REPORT_CRON: z.string().default('0 18 * * *'),
   DAILY_REPORT_ENABLED: boolish(true),
+  // Intervalo entre envios de e-mail (ms) para respeitar o rate limit do Resend.
+  EMAIL_SEND_DELAY_MS: z.coerce.number().int().nonnegative().default(600),
 
   RESEND_API_KEY: z.string().optional().default(''),
   EMAIL_FROM: z.string().default('Monitor Portal Unico <onboarding@resend.dev>'),

@@ -102,8 +102,35 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     // ?bypassLock=true reenvia mesmo para quem ja recebeu hoje (apenas teste).
     const q = req.query as { bypassLock?: string }
     const bypassLock = q.bypassLock === 'true' || q.bypassLock === '1'
-    const result = await sendDailyReport({ force: true, bypassLock })
-    return result
+    const contacts = await prisma.contact.count({ where: { active: true } })
+    // Assincrono: 300+ envios com throttle levam minutos; nao bloqueia a resposta.
+    void sendDailyReport({ force: true, bypassLock }).catch((e) => console.error('[email] envio manual:', e))
+    return { started: true, contacts }
+  })
+
+  // Historico de envios (auditoria). Filtra por dia e pagina.
+  app.get('/api/admin/send-log', async (req, reply) => {
+    const parsed = z
+      .object({
+        reportDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        status: z.enum(['sent', 'failed']).optional(),
+        limit: z.coerce.number().int().positive().max(500).default(100),
+        offset: z.coerce.number().int().nonnegative().default(0),
+      })
+      .safeParse(req.query)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'Parametros invalidos', details: parsed.error.flatten() })
+    }
+    const { reportDate, status, limit, offset } = parsed.data
+    const where = { ...(reportDate ? { reportDate } : {}), ...(status ? { status } : {}) }
+    const baseWhere = reportDate ? { reportDate } : {}
+    const [logs, total, sent, failed] = await Promise.all([
+      prisma.emailLog.findMany({ where, orderBy: { sentAt: 'desc' }, take: limit, skip: offset }),
+      prisma.emailLog.count({ where }),
+      prisma.emailLog.count({ where: { ...baseWhere, status: 'sent' } }),
+      prisma.emailLog.count({ where: { ...baseWhere, status: 'failed' } }),
+    ])
+    return { total, sent, failed, limit, offset, logs }
   })
 
   // Quem ja recebeu o relatorio hoje (trava do dia).
